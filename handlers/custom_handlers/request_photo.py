@@ -15,8 +15,11 @@ def request_photo(number, hotel_id):
     response = request_to_api(url, headers, querystring)
     data = json.loads(response.text)
 
+    # with open('test_photo.json', 'w') as file:
+    #     json.dump(data, file, indent=4)
+
     photo_list = []
     for elem in (random.choice(data['hotelImages']) for _ in range(int(number))):
-        photo_list.append(elem['baseUrl'].format(size='z'))
+        photo_list.append(elem['baseUrl'].replace('_{size}', ''))
 
     return photo_list

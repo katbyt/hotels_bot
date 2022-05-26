@@ -12,8 +12,17 @@ from handlers.custom_handlers.request_photo import request_photo
 from handlers.custom_handlers.request_properties import request_properties
 
 
+@bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal'])
+def user_query(message) -> None:
+    bot.set_state(message.from_user.id, UserInfoState.city, message.chat.id)
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data['user_command'] = message.text
+
+    bot.send_message(message.from_user.id, 'Введите город для поиска!')
+
+
 @bot.message_handler(state=UserInfoState.city)
-def city_search(message):
+def get_city(message):
     bot.set_state(message.from_user.id, UserInfoState.dest_id, message.chat.id)
     bot.send_message(message.from_user.id, 'Уточните, пожалуйста:',
                      reply_markup=city_markup(message.text))
@@ -109,31 +118,13 @@ def handle_departure_date(call: CallbackQuery):
                                   call.message.chat.id,
                                   call.message.message_id)
 
-            if data['command'] == '/bestdeal':
-                bot.set_state(call.from_user.id, UserInfoState.price, call.message.chat.id)
-                bot.send_message(call.message.chat.id, "Укажите диaпазон цен (через пробел)!")
-
-            else:
+            if data['user_command'] in ['/lowprice', '/highprice']:
                 bot.set_state(call.from_user.id, UserInfoState.hotels_count, call.message.chat.id)
                 bot.send_message(call.message.chat.id, "Укажите количество отелей!")
 
-
-@bot.message_handler(state=UserInfoState.price)
-def get_price(message: Message) -> None:
-    bot.set_state(message.from_user.id, UserInfoState.distance, message.chat.id)
-    bot.send_message(message.from_user.id, "Укажите удаленность от центра (диaпазон через пробел)!")
-
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['price'] = message.text
-
-
-@bot.message_handler(state=UserInfoState.distance)
-def get_distance(message: Message) -> None:
-    bot.set_state(message.from_user.id, UserInfoState.hotels_count, message.chat.id)
-    bot.send_message(message.from_user.id, "Укажите количество отелей!")
-
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['distance'] = message.text
+            elif data['user_command'] == '/bestdeal':
+                bot.set_state(call.from_user.id, UserInfoState.price, call.message.chat.id)
+                bot.send_message(call.message.chat.id, "Укажите диaпазон цен (через пробел)!")
 
 
 @bot.message_handler(state=UserInfoState.hotels_count)
@@ -143,8 +134,22 @@ def get_hotels_count(message: Message) -> None:
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['hotels_count'] = message.text
+
+        price_min, price_max = None, None
+        distance = ['0', '999']
+
+        if data['user_command'] == '/lowprice':
+            sort_order = 'PRICE'
+        elif data['user_command'] == '/highprice':
+            sort_order = 'PRICE_HIGHEST_FIRST'
+        elif data['user_command'] == '/bestdeal':
+            sort_order = 'DISTANCE_FROM_LANDMARK'
+            price_min, price_max = data['price']
+            distance = data['distance']
+
         data['result'] = request_properties(data['dest_id'], data['check_in'],
-                                            data['check_out'], data['hotels_count'])
+                                            data['check_out'], data['hotels_count'],
+                                            price_min, price_max, distance, sort_order)
 
 
 @bot.callback_query_handler(func=None, state=UserInfoState.photo)
@@ -171,23 +176,24 @@ def send_result(message: Message) -> None:
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['photos_count'] = message.text
 
-        for item in range(len(data['result'])):
+        for item in data['result']:
+            number = data['result'].index(item)
             bot.send_message(message.from_user.id,
-                             f'Загружаю инфу по отелю № {item + 1}...',
+                             f'Загружаю инфу по отелю № {number + 1}...',
                              reply_markup=start_markup())
             if data['photos_count'].isdigit():
-                show_photo = map(InputMediaPhoto, request_photo(message.text, data["result"][item]["id"]))
+                show_photo = map(InputMediaPhoto, request_photo(message.text, data["result"][number]["id"]))
                 bot.send_media_group(message.chat.id, show_photo)
 
-            text = f'Название отеля: {data["result"][item]["name"]}\n' \
-                   f'Адрес: {data["result"][item]["address"]}\n' \
-                   f'Удалённость от центра: {data["result"][item]["distance"]}\n' \
-                   f'Цена за ночь: {data["result"][item]["price"]}\n' \
+            text = f'Название отеля: {data["result"][number]["name"]}\n' \
+                   f'Адрес: {data["result"][number]["address"]}\n' \
+                   f'Удалённость от центра: {data["result"][number]["distance"]}\n' \
+                   f'Цена за ночь: {data["result"][number]["price"]}\n' \
                    f'Суммарная стоимость: ' \
-                   f'${int(data["result"][item]["price"][1:]) * data["count_days"]}\n' \
-                   f'Подробнее: {data["result"][item]["url"]}'
+                   f'${int(data["result"][number]["price"][1:]) * data["count_days"]}\n' \
+                   f'Подробнее: {data["result"][number]["url"]}'
 
-            bot.send_message(message.from_user.id, text)
+            bot.send_message(message.from_user.id, text, disable_web_page_preview=True)
 
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.from_user.id, 'Для продолжения нажмите любую кнопку...')

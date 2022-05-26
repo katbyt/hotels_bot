@@ -2,7 +2,7 @@ from telebot.handler_backends import State, StatesGroup
 
 
 class UserInfoState(StatesGroup):
-    command = State()
+    user_command = State()
     city = State()
     dest_id = State()
     check_in = State()
