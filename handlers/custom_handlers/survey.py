@@ -139,7 +139,7 @@ def get_hotels_count(message: Message) -> None:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['hotels_count'] = message.text
 
-            price_min, price_max = 0, 10000
+            price_min, price_max = 1, 10000
             distance = [0, 10000]
 
             if data['user_command'] == '/lowprice':

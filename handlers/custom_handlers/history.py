@@ -9,7 +9,7 @@ def history(message: Message) -> None:
         for result in User.select().where(User.user_id == message.from_user.id):
             bot.send_message(message.from_user.id, f'Пользователь: {message.from_user.full_name}\n'
                                                    f'Команда: {result.command}\n'
-                                                   f'Дата и время команды: {result.created_date}\n\n'
+                                                   f'Дата и время запроса: {result.created_date}\n\n'
                                                    f'Результат поиска: \n{result.history}',
                              disable_web_page_preview=True)
     else:
