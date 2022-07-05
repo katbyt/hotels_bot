@@ -1,7 +1,9 @@
 from telegram_bot_calendar import DetailedTelegramCalendar
+from config_data.log_info import my_logger
 
 
 def get_calendar(is_process=False, callback_data=None, **kwargs):
+    my_logger.debug('Демонстрация календаря для выбора даты.')
     if is_process:
         result, key, step = DetailedTelegramCalendar(calendar_id=kwargs['calendar_id'],
                                                      current_date=kwargs.get('current_date'),

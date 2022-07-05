@@ -1,6 +1,7 @@
 import json
 from config_data.config import RAPID_API_KEY
 from rapi_api.rapidapi import request_to_api
+from config_data.log_info import my_logger
 
 
 def request_properties(dest_id, check_in, check_out, number, price_min, price_max, distance, sort_order):
@@ -13,12 +14,15 @@ def request_properties(dest_id, check_in, check_out, number, price_min, price_ma
                    "checkOut": check_out, "adults1": "1", "priceMin": price_min, "priceMax": price_max,
                    "sortOrder": sort_order, "locale": "ru_RU", "currency": "USD", "landmarkIds": "City center"}
 
+    my_logger.debug('Попытка запроса к API для получения характеристик отеля.')
     response = request_to_api(url, headers, querystring)
 
     if isinstance(response, str):
+        my_logger.warning('Нет ответа от API.')
         return 'Что-то пошло не так...\nПовторите попытку позже!..'
 
     else:
+        my_logger.debug('Возврат ответа от API.')
         data = json.loads(response.text)
 
         # with open('test_prop.json', 'w') as file:
@@ -27,6 +31,7 @@ def request_properties(dest_id, check_in, check_out, number, price_min, price_ma
         properties = list()
         data_list = data.get('data', {}).get('body', {}).get('searchResults', {}).get('results')
         if data_list:
+            my_logger.debug('Формирование характеристик отеля для продолжения сценария.')
             for i in data_list:
                 if len(properties) < int(number):
                     if distance[0] < float(i.get('landmarks')[0].get('distance')[:-3].replace(',', '.')) < distance[1]:
@@ -40,4 +45,5 @@ def request_properties(dest_id, check_in, check_out, number, price_min, price_ma
                     return properties
 
         else:
+            my_logger.warning('Некорректный формат данных, полученных от API.')
             return 'Что-то пошло не так...\nПовторите попытку позже!..'

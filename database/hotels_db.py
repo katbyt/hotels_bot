@@ -1,4 +1,4 @@
-from peewee import *
+from peewee import SqliteDatabase, Model, IntegerField, CharField, DateTimeField, TextField
 import datetime
 import os
 
@@ -15,4 +15,5 @@ class User(Model):
         database = db
 
 
-User.create_table()
+with db:
+    User.create_table()
